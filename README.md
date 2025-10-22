@@ -31,12 +31,10 @@ vigia ./my_server --port 8080
 
 ### Options
 
-| Flag              | Description                                                 | Default |
-| ----------------- | ----------------------------------------------------------- | ------- |
-| `--max-restarts`  | Maximum number of restart attempts before exiting           | `10`    |
-| `--restart-delay` | Initial delay before retrying (exponential backoff applies) | `1s`    |
-| `--log-level`     | Logging level (`debug`, `info`, `warn`, `error`)            | `info`  |
-
+| Flag               | Description                                                 | Default |
+| ------------------ | ----------------------------------------------------------- | ------- |
+| `--always-restart` | Restart even if process exits cleanly                       | `false` |
+| `--max-restarts`   | Maximum number of restart attempts before exiting           | `10`    |
 ---
 
 ## 🧠 How It Works
