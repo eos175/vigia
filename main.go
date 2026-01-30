@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -22,7 +23,7 @@ const (
 	timeoutKill = 10 * time.Second
 )
 
-var ErrSignalReceived = fmt.Errorf("signal received")
+var ErrSignalReceived = errors.New("signal received")
 
 func main() {
 	// Configurar flags
@@ -64,6 +65,7 @@ func main() {
 
 		startTime := time.Now()
 		err := run(command, args, sigChan)
+		elapsed := time.Since(startTime)
 
 		// 1. Si recibimos una señal de terminación (Ctrl+C), salimos definitivamente
 		if err == ErrSignalReceived {
@@ -72,7 +74,8 @@ func main() {
 
 		// 2. Si el proceso terminó exitosamente
 		if err == nil {
-			log.Info().Msg("Process completed successfully")
+			log.Info().
+				Dur("duration", elapsed).Msg("Process completed successfully")
 			if !alwaysRestart {
 				return
 			}
@@ -92,7 +95,11 @@ func main() {
 			log.Info().Msg("Process ran stable — backoff reset")
 		}
 
-		log.Warn().Err(err).Msg("Process exited with error")
+		exitCode, _ := exitCodeFromError(err)
+		log.Warn().Err(err).
+			Dur("duration", elapsed).
+			Int("exit_code", exitCode).Msg("Process exited with error")
+
 		restartCount++
 		log.Info().
 			Dur("delay", restartDelay).
@@ -113,10 +120,25 @@ func nextBackoff(current, max time.Duration) time.Duration {
 	return next
 }
 
+func exitCodeFromError(err error) (int, bool) {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return 0, false
+	}
+
+	status, ok := exitErr.Sys().(syscall.WaitStatus)
+	if !ok {
+		return 0, false
+	}
+
+	return status.ExitStatus(), true
+}
+
 func run(command string, args []string, sigChan <-chan os.Signal) error {
 	log.Info().
 		Str("cmd", command).
-		Strs("args", args).Msg("Starting process")
+		Strs("args", args).
+		Msg("Starting process")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // Garantiza limpieza al terminar la función run()
