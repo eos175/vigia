@@ -109,4 +109,17 @@ MIT License © 2025 Emmanuel Ortiz
 $ vigia ./server
 ```
 
+---
+
+## 🧪 Repro en C
+
+Este binario crea un hijo en el mismo grupo de procesos para probar si `vigia` mata solo el proceso directo o también los descendientes.
+
+```bash
+gcc -O2 -Wall -Wextra -std=c11 -o testdata/repro testdata/repro.c
+./vigia ./testdata/repro
+```
+
+Desde otra terminal, manda `SIGTERM` a `vigia` y observa si el hijo sigue vivo.
+
 > *“Let Vigía keep watch while you build.”*

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -140,12 +139,10 @@ func run(command string, args []string, sigChan <-chan os.Signal) error {
 		Strs("args", args).
 		Msg("Starting process")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Garantiza limpieza al terminar la función run()
-
-	cmd := exec.CommandContext(ctx, command, args...)
+	cmd := exec.Command(command, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
 		log.Error().Err(err).Msg("Error starting command")
@@ -164,21 +161,39 @@ func run(command string, args []string, sigChan <-chan os.Signal) error {
 			Str("signal", sig.String()).
 			Msg("Received termination signal")
 
-		// Reenviar señal al hijo
-		if cmd.Process != nil {
-			if err := cmd.Process.Signal(sig); err != nil {
-				log.Warn().Err(err).Msg("Failed to forward signal to child process")
-			}
+		// Reenviar señal al grupo de procesos del hijo.
+		if err := signalProcessGroup(cmd.Process.Pid, sig); err != nil {
+			log.Warn().Err(err).Msg("Failed to forward signal to child process group")
 		}
 
-		// Esperar apagado limpio o matar si timeout
 		select {
 		case <-done:
 			log.Info().Msg("Child process exited gracefully")
 		case <-time.After(timeoutKill):
 			log.Warn().Msg("Timeout waiting for graceful shutdown — forcing kill")
-			// Al salir de la función, defer cancel() se ejecutará y matará el proceso
+			if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
+				log.Warn().Err(err).Msg("Failed to force kill child process group")
+			}
+			<-done
 		}
+
 		return ErrSignalReceived
 	}
+}
+
+func signalProcessGroup(pid int, sig os.Signal) error {
+	if pid <= 0 {
+		return fmt.Errorf("invalid pid: %d", pid)
+	}
+
+	sysSig, ok := sig.(syscall.Signal)
+	if !ok {
+		return fmt.Errorf("unsupported signal type %T", sig)
+	}
+
+	if err := syscall.Kill(-pid, sysSig); err != nil {
+		return err
+	}
+
+	return nil
 }
