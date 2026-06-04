@@ -82,7 +82,9 @@ func main() {
 			log.Info().Msg("Always-restart flag is enabled — restarting")
 			restartCount = 0
 			restartDelay = initialBackoff
-			time.Sleep(1 * time.Second)
+			if err := waitForSignalOrTimeout(1*time.Second, sigChan); err == ErrSignalReceived {
+				return
+			}
 			continue
 		}
 
@@ -106,31 +108,11 @@ func main() {
 			Int("max", maxRestarts).
 			Msg("Restarting process")
 
-		time.Sleep(restartDelay)
+		if err := waitForSignalOrTimeout(restartDelay, sigChan); err == ErrSignalReceived {
+			return
+		}
 		restartDelay = nextBackoff(restartDelay, maxBackoff)
 	}
-}
-
-func nextBackoff(current, max time.Duration) time.Duration {
-	next := current * 2
-	if next > max {
-		return max
-	}
-	return next
-}
-
-func exitCodeFromError(err error) (int, bool) {
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		return 0, false
-	}
-
-	status, ok := exitErr.Sys().(syscall.WaitStatus)
-	if !ok {
-		return 0, false
-	}
-
-	return status.ExitStatus(), true
 }
 
 func run(command string, args []string, sigChan <-chan os.Signal) error {
@@ -181,6 +163,44 @@ func run(command string, args []string, sigChan <-chan os.Signal) error {
 	}
 }
 
+func waitForSignalOrTimeout(delay time.Duration, sigChan <-chan os.Signal) error {
+	if delay <= 0 {
+		return nil
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return nil
+	case <-sigChan:
+		return ErrSignalReceived
+	}
+}
+
+func nextBackoff(current, max time.Duration) time.Duration {
+	next := current * 2
+	if next > max {
+		return max
+	}
+	return next
+}
+
+func exitCodeFromError(err error) (int, bool) {
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
+		return 0, false
+	}
+
+	status, ok := exitErr.Sys().(syscall.WaitStatus)
+	if !ok {
+		return 0, false
+	}
+
+	return status.ExitStatus(), true
+}
+
 func signalProcessGroup(pid int, sig os.Signal) error {
 	if pid <= 0 {
 		return fmt.Errorf("invalid pid: %d", pid)
@@ -192,6 +212,9 @@ func signalProcessGroup(pid int, sig os.Signal) error {
 	}
 
 	if err := syscall.Kill(-pid, sysSig); err != nil {
+		if errors.Is(err, syscall.ESRCH) {
+			return nil
+		}
 		return err
 	}
 
