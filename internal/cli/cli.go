@@ -1,0 +1,85 @@
+package cli
+
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"vigia/internal/pidfile"
+	"vigia/internal/supervisor"
+)
+
+const defaultPidfile = ".vigia.pid"
+
+func Run(args []string) int {
+	if len(args) == 0 {
+		usage(os.Args[0])
+		return 1
+	}
+
+	switch args[0] {
+	case "reload":
+		return runReload(args[1:])
+	default:
+		return runSupervisor(args)
+	}
+}
+
+func runSupervisor(args []string) int {
+	fs := flag.NewFlagSet("vigia", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+
+	var (
+		alwaysRestart bool
+		maxRestarts   int
+		pidfilePath   string
+	)
+
+	fs.BoolVar(&alwaysRestart, "always-restart", false, "Restart even if process exits cleanly")
+	fs.IntVar(&maxRestarts, "max-restarts", 10, "Maximum restart attempts before exiting")
+	fs.StringVar(&pidfilePath, "pidfile", defaultPidfile, "Path to pidfile")
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	if fs.NArg() < 1 {
+		usage(os.Args[0])
+		return 1
+	}
+
+	return supervisor.Run(supervisor.Config{
+		Command:       fs.Arg(0),
+		Args:          fs.Args()[1:],
+		AlwaysRestart: alwaysRestart,
+		MaxRestarts:   maxRestarts,
+		PidfilePath:   pidfilePath,
+	})
+}
+
+func runReload(args []string) int {
+	fs := flag.NewFlagSet("vigia reload", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+
+	pidfilePath := fs.String("pidfile", defaultPidfile, "Path to pidfile")
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	// `reload` stays out-of-process: it only signals the running supervisor.
+	if err := pidfile.Reload(*pidfilePath); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	return 0
+}
+
+func usage(bin string) {
+	fmt.Fprintf(os.Stderr, "\nUsage:\n  %s [options] <command> [args...]\n  %s reload [options]\n\n", bin, bin)
+	fmt.Fprintln(os.Stderr, "Options:")
+	fmt.Fprintln(os.Stderr, "  --always-restart   Restart even if process exits cleanly")
+	fmt.Fprintln(os.Stderr, "  --max-restarts int Maximum restart attempts before exiting (default 10)")
+	fmt.Fprintln(os.Stderr, "  --pidfile string   Path to pidfile (default \".vigia.pid\")")
+}
