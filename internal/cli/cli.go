@@ -73,6 +73,7 @@ func runReload(args []string) int {
 		return 1
 	}
 
+	fmt.Println("reloaded")
 	return 0
 }
 
