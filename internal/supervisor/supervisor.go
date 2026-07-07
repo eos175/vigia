@@ -38,6 +38,14 @@ func Run(cfg Config) int {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	// Expose the supervisor PID so `vigia reload` can target this exact instance.
+	// Check if an existing supervisor is already running to avoid overwriting the pidfile.
+	if pid, err := pidfile.Read(cfg.PidfilePath); err == nil {
+		if err := syscall.Kill(pid, 0); err == nil {
+			log.Error().Int("pid", pid).Str("pidfile", cfg.PidfilePath).Msg("Supervisor already running")
+			return 1
+		}
+	}
+
 	if err := pidfile.Write(cfg.PidfilePath, os.Getpid()); err != nil {
 		log.Error().Err(err).Str("pidfile", cfg.PidfilePath).Msg("Failed to write pidfile")
 		return 1
