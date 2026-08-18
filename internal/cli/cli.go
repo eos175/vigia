@@ -11,6 +11,8 @@ import (
 
 const defaultPidfile = ".vigia.pid"
 
+var Version = "dev"
+
 func Run(args []string) int {
 	if len(args) == 0 {
 		usage(os.Args[0])
@@ -20,9 +22,16 @@ func Run(args []string) int {
 	switch args[0] {
 	case "reload":
 		return runReload(args[1:])
+	case "version":
+		return runVersion()
 	default:
 		return runSupervisor(args)
 	}
+}
+
+func runVersion() int {
+	fmt.Println(Version)
+	return 0
 }
 
 func runSupervisor(args []string) int {
@@ -81,7 +90,7 @@ func runReload(args []string) int {
 }
 
 func usage(bin string) {
-	fmt.Fprintf(os.Stderr, "\nUsage:\n  %s [options] <command> [args...]\n  %s reload [options]\n\n", bin, bin)
+	fmt.Fprintf(os.Stderr, "\nUsage:\n  %s [options] <command> [args...]\n  %s reload [options]\n  %s version\n\n", bin, bin, bin)
 	fmt.Fprintln(os.Stderr, "Options:")
 	fmt.Fprintln(os.Stderr, "  --always-restart     Restart even if process exits cleanly")
 	fmt.Fprintln(os.Stderr, "  --max-restarts int   Maximum restart attempts before exiting (default 10)")
