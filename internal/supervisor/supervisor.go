@@ -89,7 +89,7 @@ func Run(cfg Config) int {
 			restartCount = 0
 			restartDelay = initialBackoff
 			if err := waitForSignalOrTimeout(1*time.Second, sigChan); err == ErrSignalReceived {
-				continue
+				return 0
 			}
 			continue
 		}
@@ -107,7 +107,7 @@ func Run(cfg Config) int {
 		log.Info().Dur("delay", restartDelay).Int("attempt", restartCount).Int("max", cfg.MaxRestarts).Msg("Restarting process")
 
 		if err := waitForSignalOrTimeout(restartDelay, sigChan); err == ErrSignalReceived {
-			continue
+			return 0
 		}
 		restartDelay = nextBackoff(restartDelay, maxBackoff)
 	}
@@ -193,8 +193,8 @@ func nextBackoff(current, max time.Duration) time.Duration {
 }
 
 func exitCodeFromError(err error) (int, bool) {
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if !ok {
 		return 0, false
 	}
 	status, ok := exitErr.Sys().(syscall.WaitStatus)
