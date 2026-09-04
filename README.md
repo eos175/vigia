@@ -37,6 +37,7 @@ vigia ./my_server --port 8080
 | `--always-restart` | Restart even if process exits cleanly                       | `false` |
 | `--max-restarts`   | Maximum number of restart attempts before exiting           | `10`    |
 | `--pidfile`        | Path to pidfile                                             | `.vigia.pid` |
+| `--stderr-file`    | Path to duplicate the child's stderr output to a file       | (none)  |
 ---
 
 ## 🧠 How It Works
@@ -44,7 +45,7 @@ vigia ./my_server --port 8080
 1. Vigía starts the given command as a child process.
 2. If the process exits unexpectedly, it logs the error and restarts it.
 3. Each restart increases the delay exponentially (1s → 2s → 4s … up to 30s).
-4. When Vigía receives a `SIGINT` or `SIGTERM`, it forwards the signal to the child process, waits up to 5 seconds for it to exit gracefully, then terminates.
+4. When Vigía receives a `SIGINT` or `SIGTERM`, it forwards the signal to the child process, waits up to 10 seconds for it to exit gracefully, then terminates.
 5. `vigia reload` reads the pidfile and sends `SIGUSR1` to the running supervisor, which restarts the child without exiting.
 
 ---

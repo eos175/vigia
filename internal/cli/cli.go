@@ -59,6 +59,16 @@ func runSupervisor(args []string) int {
 		return 1
 	}
 
+	if maxRestarts < 0 {
+		fmt.Fprintln(os.Stderr, "--max-restarts must be >= 0")
+		return 1
+	}
+
+	if pidfilePath == "" {
+		fmt.Fprintln(os.Stderr, "--pidfile must not be empty")
+		return 1
+	}
+
 	return supervisor.Run(supervisor.Config{
 		Command:       fs.Arg(0),
 		Args:          fs.Args()[1:],
