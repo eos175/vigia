@@ -1,4 +1,4 @@
-module vigia
+module github.com/eos175/vigia
 
 go 1.26
 

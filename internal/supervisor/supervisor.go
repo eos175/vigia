@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"vigia/internal/pidfile"
+	"github.com/eos175/vigia/internal/pidfile"
 )
 
 const (

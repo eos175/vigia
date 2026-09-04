@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"vigia/internal/cli"
+	"github.com/eos175/vigia/internal/cli"
 )
 
 func main() {

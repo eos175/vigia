@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"vigia/internal/pidfile"
-	"vigia/internal/supervisor"
+	"github.com/eos175/vigia/internal/pidfile"
+	"github.com/eos175/vigia/internal/supervisor"
 )
 
 const defaultPidfile = ".vigia.pid"
