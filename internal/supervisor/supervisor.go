@@ -93,32 +93,24 @@ func Run(cfg Config) int {
 			return 0
 		}
 
+		if err == nil && !cfg.AlwaysRestart {
+			log.Info().Dur("duration", elapsed).Msg("Process completed successfully")
+			return 0
+		}
+
 		if err == nil {
 			log.Info().Dur("duration", elapsed).Msg("Process completed successfully")
-			if !cfg.AlwaysRestart {
-				return 0
-			}
 			log.Info().Msg("Always-restart flag is enabled — restarting")
-			restartCount = 0
-			restartDelay = initialBackoff
-			if sig, ok := waitForSignalOrTimeout(1*time.Second, sigChan); ok {
-				if sig != syscall.SIGUSR1 {
-					return 0
-				}
-				log.Info().Msg("Reload requested")
-				continue
-			}
-			continue
+		} else {
+			exitCode, _ := exitCodeFromError(err)
+			log.Warn().Err(err).Dur("duration", elapsed).Int("exit_code", exitCode).Msg("Process exited with error")
 		}
 
 		if time.Since(startTime) > stabilizationTime {
-			restartDelay = initialBackoff
 			restartCount = 0
+			restartDelay = initialBackoff
 			log.Info().Msg("Process ran stable — backoff reset")
 		}
-
-		exitCode, _ := exitCodeFromError(err)
-		log.Warn().Err(err).Dur("duration", elapsed).Int("exit_code", exitCode).Msg("Process exited with error")
 
 		restartCount++
 		log.Info().Dur("delay", restartDelay).Int("attempt", restartCount).Int("max", cfg.MaxRestarts).Msg("Restarting process")
