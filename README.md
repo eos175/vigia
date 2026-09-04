@@ -35,7 +35,7 @@ vigia ./my_server --port 8080
 | Flag               | Description                                                 | Default |
 | ------------------ | ----------------------------------------------------------- | ------- |
 | `--always-restart` | Restart even if process exits cleanly                       | `false` |
-| `--max-restarts`   | Maximum number of restart attempts before exiting           | `10`    |
+| `--max-restarts`   | Maximum number of restart attempts before exiting (`0` = run once) | `10`    |
 | `--pidfile`        | Path to pidfile                                             | `.vigia.pid` |
 | `--stderr-file`    | Path to duplicate the child's stderr output to a file       | (none)  |
 ---

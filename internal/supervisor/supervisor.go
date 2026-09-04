@@ -74,7 +74,7 @@ func Run(cfg Config) int {
 	defer signal.Stop(sigChan)
 
 	for {
-		if restartCount >= cfg.MaxRestarts {
+		if restartCount > 0 && restartCount >= cfg.MaxRestarts {
 			log.Error().Int("max_restarts", cfg.MaxRestarts).Int("last_exit_code", lastExitCode).Msg("Maximum restart attempts reached. Exiting.")
 			return lastExitCode
 		}
