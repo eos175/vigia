@@ -101,8 +101,12 @@ func Run(cfg Config) int {
 			log.Info().Msg("Always-restart flag is enabled — restarting")
 			restartCount = 0
 			restartDelay = initialBackoff
-			if err := waitForSignalOrTimeout(1*time.Second, sigChan); err == ErrSignalReceived {
-				return 0
+			if sig, ok := waitForSignalOrTimeout(1*time.Second, sigChan); ok {
+				if sig != syscall.SIGUSR1 {
+					return 0
+				}
+				log.Info().Msg("Reload requested")
+				continue
 			}
 			continue
 		}
@@ -119,8 +123,14 @@ func Run(cfg Config) int {
 		restartCount++
 		log.Info().Dur("delay", restartDelay).Int("attempt", restartCount).Int("max", cfg.MaxRestarts).Msg("Restarting process")
 
-		if err := waitForSignalOrTimeout(restartDelay, sigChan); err == ErrSignalReceived {
-			return 0
+		if sig, ok := waitForSignalOrTimeout(restartDelay, sigChan); ok {
+			if sig != syscall.SIGUSR1 {
+				return 0
+			}
+			log.Info().Msg("Reload requested")
+			restartCount = 0
+			restartDelay = initialBackoff
+			continue
 		}
 		restartDelay = nextBackoff(restartDelay, maxBackoff)
 	}
@@ -181,9 +191,9 @@ func run(command string, args []string, stderrWriter io.Writer, sigChan <-chan o
 	}
 }
 
-func waitForSignalOrTimeout(delay time.Duration, sigChan <-chan os.Signal) error {
+func waitForSignalOrTimeout(delay time.Duration, sigChan <-chan os.Signal) (os.Signal, bool) {
 	if delay <= 0 {
-		return nil
+		return nil, false
 	}
 
 	timer := time.NewTimer(delay)
@@ -191,9 +201,9 @@ func waitForSignalOrTimeout(delay time.Duration, sigChan <-chan os.Signal) error
 
 	select {
 	case <-timer.C:
-		return nil
-	case <-sigChan:
-		return ErrSignalReceived
+		return nil, false
+	case sig := <-sigChan:
+		return sig, true
 	}
 }
 
