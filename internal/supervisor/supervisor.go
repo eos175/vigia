@@ -69,7 +69,7 @@ func Run(cfg Config) int {
 	restartDelay := initialBackoff
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGUSR1)
 	defer signal.Stop(sigChan)
 
 	for {
@@ -116,7 +116,7 @@ func Run(cfg Config) int {
 		log.Info().Dur("delay", restartDelay).Int("attempt", restartCount).Int("max", cfg.MaxRestarts).Msg("Restarting process")
 
 		if sig, ok := waitForSignalOrTimeout(restartDelay, sigChan); ok {
-			if sig != syscall.SIGUSR1 {
+			if sig != syscall.SIGUSR1 && sig != syscall.SIGHUP {
 				return 0
 			}
 			log.Info().Msg("Reload requested")
@@ -148,7 +148,7 @@ func run(command string, args []string, stderrWriter io.Writer, sigChan <-chan o
 	case err := <-done:
 		return err
 	case sig := <-sigChan:
-		if sig == syscall.SIGUSR1 {
+		if sig == syscall.SIGUSR1 || sig == syscall.SIGHUP {
 			// Reload means: stop the child, then loop back and start it again.
 			if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGTERM); err != nil {
 				log.Warn().Err(err).Msg("Failed to forward reload termination to child process group")
