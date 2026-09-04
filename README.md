@@ -12,7 +12,7 @@ Think of it as a small guardian that keeps your critical services alive — with
 - 🔁 **Automatic restart** when the process exits with an error.  
 - ⏱️ **Exponential backoff** between restarts (up to 30s).  
 - 🧹 **Graceful shutdown** on `SIGINT` or `SIGTERM`.  
-- 🔄 **Manual reload** with `vigia reload` using a pidfile and `SIGUSR1`.  
+- 🔄 **Manual reload** with `vigia reload` using a pidfile and `SIGUSR1` (or `SIGHUP`).  
 - ⚙️ **Configurable retries** and behavior via flags.  
 - 🪶 Minimal overhead — compiled to a single static binary.
 
@@ -22,7 +22,7 @@ Think of it as a small guardian that keeps your critical services alive — with
 
 ```bash
 vigia [options] <command> [args...]
-````
+```
 
 ### Example
 
@@ -46,7 +46,8 @@ vigia ./my_server --port 8080
 2. If the process exits unexpectedly, it logs the error and restarts it.
 3. Each restart increases the delay exponentially (1s → 2s → 4s … up to 30s).
 4. When Vigía receives a `SIGINT` or `SIGTERM`, it forwards the signal to the child process, waits up to 10 seconds for it to exit gracefully, then terminates.
-5. `vigia reload` reads the pidfile and sends `SIGUSR1` to the running supervisor, which restarts the child without exiting.
+5. `vigia reload` reads the pidfile and sends `SIGUSR1` to the running supervisor, which restarts the child without exiting. `SIGHUP` triggers the same reload.
+6. When the restart limit is reached, Vigía exits with the last exit code of the supervised command (signal deaths map to `128 + signal`).
 
 ---
 
@@ -101,17 +102,11 @@ MIT License © 2025 Emmanuel Ortiz
 
 ---
 
-### 🐧 Example use cases
+## 🐧 Example use cases
 
 * Keep your Go service running on a bare-metal server.
 * Supervise a Python or Node.js script.
 * Auto-restart a CLI tool during testing.
-
----
-
-```
-$ vigia ./server
-```
 
 ---
 
