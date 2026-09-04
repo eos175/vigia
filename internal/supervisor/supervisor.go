@@ -67,6 +67,7 @@ func Run(cfg Config) int {
 
 	restartCount := 0
 	restartDelay := initialBackoff
+	lastExitCode := 0
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGUSR1)
@@ -74,8 +75,8 @@ func Run(cfg Config) int {
 
 	for {
 		if restartCount >= cfg.MaxRestarts {
-			log.Error().Int("max_restarts", cfg.MaxRestarts).Msg("Maximum restart attempts reached. Exiting.")
-			return 1
+			log.Error().Int("max_restarts", cfg.MaxRestarts).Int("last_exit_code", lastExitCode).Msg("Maximum restart attempts reached. Exiting.")
+			return lastExitCode
 		}
 
 		startTime := time.Now()
@@ -102,7 +103,11 @@ func Run(cfg Config) int {
 			log.Info().Dur("duration", elapsed).Msg("Process completed successfully")
 			log.Info().Msg("Always-restart flag is enabled — restarting")
 		} else {
-			exitCode, _ := exitCodeFromError(err)
+			exitCode, ok := exitCodeFromError(err)
+			if !ok {
+				exitCode = 1
+			}
+			lastExitCode = exitCode
 			log.Warn().Err(err).Dur("duration", elapsed).Int("exit_code", exitCode).Msg("Process exited with error")
 		}
 
@@ -129,8 +134,6 @@ func Run(cfg Config) int {
 }
 
 func run(command string, args []string, stderrWriter io.Writer, sigChan <-chan os.Signal) error {
-	log.Info().Str("cmd", command).Strs("args", args).Msg("Starting process")
-
 	cmd := exec.Command(command, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = stderrWriter
@@ -140,6 +143,7 @@ func run(command string, args []string, stderrWriter io.Writer, sigChan <-chan o
 		log.Error().Err(err).Msg("Error starting command")
 		return err
 	}
+	log.Info().Str("cmd", command).Strs("args", args).Int("pid", cmd.Process.Pid).Msg("Starting process")
 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
@@ -215,6 +219,9 @@ func exitCodeFromError(err error) (int, bool) {
 	status, ok := exitErr.Sys().(syscall.WaitStatus)
 	if !ok {
 		return 0, false
+	}
+	if status.Signaled() {
+		return 128 + int(status.Signal()), true
 	}
 	return status.ExitStatus(), true
 }
