@@ -80,3 +80,50 @@ func TestSignalProcessGroupRejectsNonSignal(t *testing.T) {
 		t.Fatal("expected error for a type that is not syscall.Signal")
 	}
 }
+
+func TestRunReceivesTerminationSignal(t *testing.T) {
+	sigChan := make(chan os.Signal, 2)
+	done := make(chan error, 1)
+
+	go func() {
+		done <- run("sleep", []string{"5"}, sigChan)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	sigChan <- syscall.SIGINT
+
+	select {
+	case err := <-done:
+		if err != ErrSignalReceived {
+			t.Fatalf("got err %v, want ErrSignalReceived", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for run to terminate on signal")
+	}
+}
+
+func TestRunSecondSignalForcesKill(t *testing.T) {
+	sigChan := make(chan os.Signal, 2)
+	done := make(chan error, 1)
+
+	// Subprocess that ignores SIGINT and SIGTERM
+	go func() {
+		done <- run("sh", []string{"-c", `trap "" INT TERM; sleep 10`}, sigChan)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	// First signal: graceful termination requested
+	sigChan <- syscall.SIGINT
+	time.Sleep(50 * time.Millisecond)
+	// Second signal: should force SIGKILL immediately without waiting timeoutKill (10s)
+	sigChan <- syscall.SIGINT
+
+	select {
+	case err := <-done:
+		if err != ErrSignalReceived {
+			t.Fatalf("got err %v, want ErrSignalReceived", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second signal did not force immediate kill within 2s")
+	}
+}

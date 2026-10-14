@@ -144,14 +144,31 @@ func run(command string, args []string, sigChan <-chan os.Signal) error {
 			if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGTERM); err != nil {
 				log.Warn().Err(err).Msg("Failed to forward reload termination to child process group")
 			}
-			select {
-			case <-done:
-			case <-time.After(timeoutKill):
-				log.Warn().Msg("Timeout waiting for graceful shutdown during reload — forcing kill")
-				if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
-					log.Warn().Err(err).Msg("Failed to force kill child process group")
+			reloadTimer := time.NewTimer(timeoutKill)
+			defer reloadTimer.Stop()
+
+		reloadLoop:
+			for {
+				select {
+				case <-done:
+					break reloadLoop
+				case nextSig := <-sigChan:
+					if nextSig == syscall.SIGINT || nextSig == syscall.SIGTERM {
+						log.Warn().Msg("Termination signal received during reload — forcing kill")
+						if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
+							log.Warn().Err(err).Msg("Failed to force kill child process group")
+						}
+						<-done
+						return ErrSignalReceived
+					}
+				case <-reloadTimer.C:
+					log.Warn().Msg("Timeout waiting for graceful shutdown during reload — forcing kill")
+					if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
+						log.Warn().Err(err).Msg("Failed to force kill child process group")
+					}
+					<-done
+					break reloadLoop
 				}
-				<-done
 			}
 			return ErrReloadRequested
 		}
@@ -160,15 +177,32 @@ func run(command string, args []string, sigChan <-chan os.Signal) error {
 		if err := signalProcessGroup(cmd.Process.Pid, sig); err != nil {
 			log.Warn().Err(err).Msg("Failed to forward signal to child process group")
 		}
-		select {
-		case <-done:
-			log.Info().Msg("Child process exited gracefully")
-		case <-time.After(timeoutKill):
-			log.Warn().Msg("Timeout waiting for graceful shutdown — forcing kill")
-			if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
-				log.Warn().Err(err).Msg("Failed to force kill child process group")
+		shutdownTimer := time.NewTimer(timeoutKill)
+		defer shutdownTimer.Stop()
+
+	shutdownLoop:
+		for {
+			select {
+			case <-done:
+				log.Info().Msg("Child process exited gracefully")
+				break shutdownLoop
+			case nextSig := <-sigChan:
+				if nextSig == syscall.SIGINT || nextSig == syscall.SIGTERM {
+					log.Warn().Msg("Second termination signal received — forcing immediate kill")
+					if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
+						log.Warn().Err(err).Msg("Failed to force kill child process group")
+					}
+					<-done
+					break shutdownLoop
+				}
+			case <-shutdownTimer.C:
+				log.Warn().Msg("Timeout waiting for graceful shutdown — forcing kill")
+				if err := signalProcessGroup(cmd.Process.Pid, syscall.SIGKILL); err != nil {
+					log.Warn().Err(err).Msg("Failed to force kill child process group")
+				}
+				<-done
+				break shutdownLoop
 			}
-			<-done
 		}
 		return ErrSignalReceived
 	}
