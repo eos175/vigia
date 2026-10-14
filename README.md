@@ -44,7 +44,7 @@ vigia ./my_server --port 8080
 1. Vigía starts the given command as a child process.
 2. If the process exits unexpectedly, it logs the error and restarts it.
 3. Each restart increases the delay exponentially (1s → 2s → 4s … up to 30s).
-4. When Vigía receives a `SIGINT` or `SIGTERM`, it forwards the signal to the child process, waits up to 10 seconds for it to exit gracefully, then terminates.
+4. When Vigía receives a `SIGINT` or `SIGTERM`, it forwards the signal to the child process group, waits up to 10 seconds for it to exit gracefully (a second signal forces immediate `SIGKILL`), then terminates.
 5. `vigia reload` reads the pidfile and sends `SIGUSR1` to the running supervisor, which restarts the child without exiting. `SIGHUP` triggers the same reload.
 6. When the restart limit is reached, Vigía exits with the last exit code of the supervised command (signal deaths map to `128 + signal`).
 
@@ -108,16 +108,5 @@ MIT License © 2026 Emmanuel Ortiz
 - Auto-restart a CLI tool during testing.
 
 ---
-
-## 🧪 Repro en C
-
-Este binario crea un hijo en el mismo grupo de procesos para probar si `vigia` mata solo el proceso directo o también los descendientes.
-
-```bash
-gcc -O2 -Wall -Wextra -std=c11 -o testdata/repro testdata/repro.c
-./vigia ./testdata/repro
-```
-
-Desde otra terminal, manda `SIGTERM` a `vigia` y observa si el hijo sigue vivo.
 
 > _“Let Vigía keep watch while you build.”_
