@@ -42,13 +42,11 @@ func runSupervisor(args []string) int {
 		alwaysRestart bool
 		maxRestarts   int
 		pidfilePath   string
-		stderrFile    string
 	)
 
 	fs.BoolVar(&alwaysRestart, "always-restart", false, "Restart even if process exits cleanly")
 	fs.IntVar(&maxRestarts, "max-restarts", 10, "Maximum restart attempts before exiting")
 	fs.StringVar(&pidfilePath, "pidfile", defaultPidfile, "Path to pidfile")
-	fs.StringVar(&stderrFile, "stderr-file", "", "Path to write duplicated stderr output (optional)")
 
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -75,7 +73,6 @@ func runSupervisor(args []string) int {
 		AlwaysRestart: alwaysRestart,
 		MaxRestarts:   maxRestarts,
 		PidfilePath:   pidfilePath,
-		StderrFile:    stderrFile,
 	})
 }
 
@@ -105,5 +102,4 @@ func usage(bin string) {
 	fmt.Fprintln(os.Stderr, "  --always-restart     Restart even if process exits cleanly")
 	fmt.Fprintln(os.Stderr, "  --max-restarts int   Maximum restart attempts before exiting (default 10)")
 	fmt.Fprintln(os.Stderr, "  --pidfile string     Path to pidfile (default \".vigia.pid\")")
-	fmt.Fprintln(os.Stderr, "  --stderr-file string Path to write duplicated stderr output (optional)")
 }

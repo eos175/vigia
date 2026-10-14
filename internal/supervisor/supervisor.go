@@ -3,7 +3,6 @@ package supervisor
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -32,23 +31,11 @@ type Config struct {
 	AlwaysRestart bool
 	MaxRestarts   int
 	PidfilePath   string
-	StderrFile    string
 }
 
 func Run(cfg Config) int {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05"})
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-
-	var stderrWriter io.Writer = os.Stderr
-	if cfg.StderrFile != "" {
-		file, err := os.OpenFile(cfg.StderrFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			log.Error().Err(err).Str("file", cfg.StderrFile).Msg("Failed to open stderr log file")
-			return 1
-		}
-		defer file.Close()
-		stderrWriter = io.MultiWriter(os.Stderr, file)
-	}
 
 	// Expose the supervisor PID so `vigia reload` can target this exact instance.
 	// Check if an existing supervisor is already running to avoid overwriting the pidfile.
@@ -80,7 +67,7 @@ func Run(cfg Config) int {
 		}
 
 		startTime := time.Now()
-		err := run(cfg.Command, cfg.Args, stderrWriter, sigChan)
+		err := run(cfg.Command, cfg.Args, sigChan)
 		elapsed := time.Since(startTime)
 
 		if err == ErrReloadRequested {
@@ -133,10 +120,10 @@ func Run(cfg Config) int {
 	}
 }
 
-func run(command string, args []string, stderrWriter io.Writer, sigChan <-chan os.Signal) error {
+func run(command string, args []string, sigChan <-chan os.Signal) error {
 	cmd := exec.Command(command, args...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = stderrWriter
+	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {

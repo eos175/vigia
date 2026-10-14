@@ -1,4 +1,3 @@
-
 # 🧭 Vigía
 
 **Vigía** is a lightweight process supervisor and auto-relauncher written in Go.  
@@ -9,11 +8,11 @@ Think of it as a small guardian that keeps your critical services alive — with
 
 ## ✨ Features
 
-- 🔁 **Automatic restart** when the process exits with an error.  
-- ⏱️ **Exponential backoff** between restarts (up to 30s).  
-- 🧹 **Graceful shutdown** on `SIGINT` or `SIGTERM`.  
-- 🔄 **Manual reload** with `vigia reload` using a pidfile and `SIGUSR1` (or `SIGHUP`).  
-- ⚙️ **Configurable retries** and behavior via flags.  
+- 🔁 **Automatic restart** when the process exits with an error.
+- ⏱️ **Exponential backoff** between restarts (up to 30s).
+- 🧹 **Graceful shutdown** on `SIGINT` or `SIGTERM`.
+- 🔄 **Manual reload** with `vigia reload` using a pidfile and `SIGUSR1` (or `SIGHUP`).
+- ⚙️ **Configurable retries** and behavior via flags.
 - 🪶 Minimal overhead — compiled to a single static binary.
 
 ---
@@ -32,12 +31,12 @@ vigia ./my_server --port 8080
 
 ### Options
 
-| Flag               | Description                                                 | Default |
-| ------------------ | ----------------------------------------------------------- | ------- |
-| `--always-restart` | Restart even if process exits cleanly                       | `false` |
-| `--max-restarts`   | Maximum number of restart attempts before exiting (`0` = run once) | `10`    |
-| `--pidfile`        | Path to pidfile                                             | `.vigia.pid` |
-| `--stderr-file`    | Path to duplicate the child's stderr output to a file       | (none)  |
+| Flag               | Description                                                        | Default      |
+| ------------------ | ------------------------------------------------------------------ | ------------ |
+| `--always-restart` | Restart even if process exits cleanly                              | `false`      |
+| `--max-restarts`   | Maximum number of restart attempts before exiting (`0` = run once) | `10`         |
+| `--pidfile`        | Path to pidfile                                                    | `.vigia.pid` |
+
 ---
 
 ## 🧠 How It Works
@@ -82,31 +81,31 @@ go build -ldflags="-s -w" -o vigia .
 
 ## ⚖️ License
 
-MIT License © 2025 Emmanuel Ortiz
+MIT License © 2026 Emmanuel Ortiz
 
 ---
 
 ## 🧭 Name Meaning
 
-> “**Vigía**” (Spanish) — *The Watcher*.
+> “**Vigía**” (Spanish) — _The Watcher_.
 >
-> In Spanish, a *vigía* is someone who keeps watch from a tower or ship — a perfect metaphor for a program that stands guard over your processes.
+> In Spanish, a _vigía_ is someone who keeps watch from a tower or ship — a perfect metaphor for a program that stands guard over your processes.
 
 ---
 
 ## 💡 Inspiration
 
-* Simplicity of `supervisord`
-* Minimalism of `forever` (Node.js)
-* Reliability of `systemd`, without the overhead
+- Simplicity of `supervisord`
+- Minimalism of `forever` (Node.js)
+- Reliability of `systemd`, without the overhead
 
 ---
 
 ## 🐧 Example use cases
 
-* Keep your Go service running on a bare-metal server.
-* Supervise a Python or Node.js script.
-* Auto-restart a CLI tool during testing.
+- Keep your Go service running on a bare-metal server.
+- Supervise a Python or Node.js script.
+- Auto-restart a CLI tool during testing.
 
 ---
 
@@ -121,4 +120,4 @@ gcc -O2 -Wall -Wextra -std=c11 -o testdata/repro testdata/repro.c
 
 Desde otra terminal, manda `SIGTERM` a `vigia` y observa si el hijo sigue vivo.
 
-> *“Let Vigía keep watch while you build.”*
+> _“Let Vigía keep watch while you build.”_
